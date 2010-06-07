@@ -1,5 +1,3 @@
-
-
 (function(context) {
 
     var registry = {};
@@ -43,6 +41,7 @@
         var missing = extractResources(code.toString());
 
         for(var path in pending){
+            
             if(pending[path] === name){
 
                 registry[path] = {
@@ -104,7 +103,20 @@
     }
 
     var scriptNode = document.createElement('script');
-    var scriptAnchor = document.getElementsByTagName('script')[0];
+    var scriptAnchor = (function(){
+        var list = document.getElementsByTagName('script')
+        , i = list.length
+        , node
+        , re = re = /module[^\/\\]*\.js.?$/i;
+        while((node = list[--i])){
+            if(/module\.js/.test(node.src)){
+                module.root = node.src.replace(re, '');
+                return node;
+            }
+        }
+        module.root = '';
+        return node;
+    }());
 
     var load = function(list) {
         var fragment = document.createDocumentFragment();
@@ -130,12 +142,18 @@
             if(!node.readyState || /complete|loaded/i.test(node.readyState)) {
 
                 announce('loaded', {
-                    path: node.id,
-                    src: node.src
+                    path: node.id
                 });
+                
+                if(!registry[node.id]){
+                    // assuming resource that doesn't use module();
+                    registry[node.id] = {module:'no module inserted for '+node.id};
+                    announce('complete',{
+                        path: node.id
+                    });
+                }
 
                 node.onload = node.onreadystatechange = null;
-                delete pending[node.id];
                 //node.parentNode.removeChild(node);
                 node = null;
             }
