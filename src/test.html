@@ -1,0 +1,49 @@
+
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+
+<script src="module.js"></script>
+<script>
+
+
+    var listener1 = function(e){
+        console.groupCollapsed('+event : '+e.type + '("' + e.path+'")');
+        for(var key in e){
+            console.log(key + ' : ' + e[key])
+        }
+        console.groupEnd();
+    }
+
+    var listener2 = function(e){
+        console.log('+event : '+e.type + '("' + e.path+'")');
+    }
+
+    var listener = listener2;
+
+    module.listen('complete', listener);
+    module.listen('loaded', listener);
+    module.listen('error', listener);
+    module.listen('run', listener);
+    module.listen('ran', listener);
+
+    
+    module.config({
+        repositories: {
+            'jquery/' : 'http://ajax.googleapis.com/ajax/libs/'
+        }
+    });
+
+    //module.run('impl');
+
+
+    //module.run('init');
+    //module.run('init');
+    module.run('serf');
+
+    
+</script>
+</body>
+</html>
