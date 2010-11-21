@@ -1,9 +1,5 @@
-module('test', function(exp, req){
+var test = function () {
 
-    req('jquery/1.4.2/jquery.min');
-    exp.test = function(){
-        console.log('Test succeeded.')
-    }
+    alert( "test" );
 
-
-});
+}

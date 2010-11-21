@@ -1,7 +1,7 @@
-module('serf', function(exp, req){
+define( function (){
 
-    req('jquery/1.4.2/jquery.min');
-    req('test').test();
+    return function (){
+        alert( "yay" );
+    }
 
-
-});
+} );

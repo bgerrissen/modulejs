@@ -8,40 +8,99 @@
 <script src="module.js"></script>
 <script>
 
+    require.config({
+        debug : true
+    })
 
-    var listener1 = function(e){
-        console.groupCollapsed('+event : '+e.type + '("' + e.path+'")');
-        for(var key in e){
-            console.log(key + ' : ' + e[key])
-        }
-        console.groupEnd();
-    }
+    require.listen( "error" , function ( e ) {
 
-    var listener2 = function(e){
-        console.log('+event : '+e.type + '("' + e.path+'")');
-    }
+        console.log( e );
 
-    var listener = listener2;
-
-    module.listen('complete', listener);
-    module.listen('loaded', listener);
-    module.listen('error', listener);
-    module.listen('run', listener);
-    module.listen('ran', listener);
-
-    
-    module.config({
-        repositories: {
-            'jquery/' : 'http://ajax.googleapis.com/ajax/libs/'
-        }
     });
 
-    //module.run('impl');
 
+    require.plugin( "grab" , function ( record , param ) {
 
-    //module.run('init');
-    //module.run('init');
-    module.run('serf');
+        var list = param.replace( /\s*/g , "" ).split( "," )
+        , i = list.length
+        , data = {};
+
+        require.listen( "loaded" , function ( e ) {
+
+            if ( e.record === record ) {
+
+                e.deafen();
+
+                if ( i === 1 ) {
+
+                    data.module =  window[ list[ 0 ] ];
+
+                } else if ( i > 1 ) {
+
+                    data.module = {};
+
+                    while ( i-- ) {
+
+                        data.module[ list[ i ] ] = window[ list[ i ] ];
+
+                    }
+
+                }
+
+                require._insertStack.push( data );
+
+            }
+
+        } );
+
+    } );
+
+    require.plugin( "clean" , function ( record , param ) {
+
+        var list = param.replace( /\s*/g , "" ).split( "," )
+        , i = list.length
+        , data = {};
+
+        require.listen( "complete" , function ( e ) {
+
+            if ( e.record === record ) {
+
+                e.deafen();
+
+                while ( i-- ) {
+
+                    this[ list[ i ] ] = null;
+                    delete this[ list[ i ] ];
+
+                }
+
+            }
+
+        } );
+
+    } );
+
+    require.plugin( "final" , function ( record , param ) {
+
+        record.context = "";
+        record.extention = "";
+
+    } );
+
+    require( [ "test !grab( test ) !clean( test )" ] , function ( serf ) {
+
+        serf();
+
+        console.log( test )
+
+    });
+
+    require( [ "test.js !final() !grab(test)" ] , function ( ook ) {
+
+        console.log( ook )
+
+    } );
+
 
     
 </script>
