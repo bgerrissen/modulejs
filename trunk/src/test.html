@@ -1,0 +1,42 @@
+
+<html>
+<head>
+    <title></title>
+</head>
+<body>
+
+<script src="modular.js"></script>
+<script>
+
+    require.config({
+        debug : true
+    })
+
+    require.listen( "error" , function ( e ) {
+
+        console.log( e );
+
+    });
+
+
+    
+
+    require( [ "test !grab( test ) !clean( test )" ] , function ( serf ) {
+
+        serf();
+
+        console.log( test )
+
+    });
+
+    require( [ "test.js !final() !grab(test)" ] , function ( ook ) {
+
+        console.log( ook )
+
+    } );
+
+
+    
+</script>
+</body>
+</html>

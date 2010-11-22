@@ -16,11 +16,28 @@
     , EVENT_LOADING = "loading"
     , EVENT_LOADED = "loaded"
     , EVENT_ERROR = "error"
+    , EVENT_WARNING = "warning"
+
+    , uid = +new Date()
 
     , config = {}
-    , setConfig = function ( settings ) {
+    , setConfig = function ( setting ) {
 
-        mixin( config , settings , true );
+        var settingsType = type( setting );
+
+        if ( arguments.length === 2 && settingsType === STRING ) {
+
+            config[ setting ] = arguments[ 1 ];
+
+        } else if ( settingsType === OBJECT ) {
+
+            mixin( config , setting , true );
+
+        } else if ( settingsType === STRING ) {
+
+            return config[ setting ];
+
+        }
 
     }
 
@@ -138,9 +155,17 @@
 
                 } catch ( e ) {
 
-                    notify( EVENT_ERROR , {
-                        message : e
-                    } );
+                    if ( eventType === EVENT_ERROR ) {
+
+                        throw e;
+
+                    } else {
+
+                        notify( EVENT_ERROR , {
+                            message : "Error in listener: " + e
+                        } );
+
+                    }
 
                 }
 
@@ -433,7 +458,14 @@
 
         if ( !data ) {
 
-            // todo: notify error
+            // assume global polluting js file.
+            notify( EVENT_WARNING , {
+                message : "No module was defined, assuming globals, completing empty module."
+            } );
+
+            record = getRecord( loadedPath );
+            complete( record );
+            
             return;
 
         }
@@ -543,7 +575,7 @@
 
         while ( i && i-- ) {
 
-            imports = [].concat( imports , list[ i ].module );
+            imports = [].concat( list[ i ].module , imports );
 
         }
 
@@ -617,7 +649,7 @@
 
         var node = record.node = scriptNode.cloneNode( false );
 
-        node.src = record.context + record.path + record.extention;
+        node.src = record.context + record.path + record.extention + "?" + getCacheKey();
 
         fragment.appendChild( node );
 
@@ -659,6 +691,10 @@
             record : record
         } );
 
+    }
+    , getCacheKey = function(){
+        var version = "cacheKey=" + config.cacheVersion;
+        return config.debug ? version + ( "-debugMode-" + uid++ ) : version;
     }
 
     /** @method formatDefineArguments( arguments:Object )
@@ -709,7 +745,7 @@
 
     , require = function ( needs , callback ) {
 
-        if ( type( needs ) != ARRAY || type( callback ) != FUNCTION ) {
+        if ( type( needs ) != ARRAY ) {
 
             // todo: notify error
             return;
@@ -718,18 +754,22 @@
 
         var fetch = filter( [].concat( format( needs ) ) );
 
-        listen( EVENT_COMPLETE , function ( e ) {
-            
-            filter( fetch );
+        if ( type( callback ) === FUNCTION ) {
 
-            if ( !fetch.length ) {
+            listen( EVENT_COMPLETE , function ( e ) {
 
-                e.deafen();
-                callback.apply( null , getImports( needs  ) );
+                filter( fetch );
 
-            }
+                if ( !fetch.length ) {
 
-        } );
+                    e.deafen();
+                    callback.apply( null , getImports( needs  ) );
+
+                }
+
+            } );
+
+        }
 
         load( fetch );
 
@@ -746,10 +786,9 @@
     setConfig( {
         scriptTimeout : 10000,
         debug : false,
-        defaultContext : defaultContext
+        defaultContext : defaultContext,
+        cacheVersion : "1.0.0"
     } );
-
-    require._insertStack = insertStack;
 
     require.plugin = setProcessor;
 

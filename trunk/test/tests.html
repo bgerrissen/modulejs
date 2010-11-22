@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="utf-8"/>
+
+    <title></title>
+
+    <link href="qunit/qunit.css" rel="stylesheet" />
+
+</head>
+<body>
+
+    <h1 id="qunit-header">QUnit example</h1>
+    <h2 id="qunit-banner"></h2>
+    <div id="qunit-testrunner-toolbar"></div>
+    <h2 id="qunit-userAgent"></h2>
+    <ol id="qunit-tests"></ol>
+    <div id="qunit-fixture">test markup, will be hidden</div>
+
+    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="qunit/qunit.js"></script>
+
+
+    <script src="../src/modular.js"></script>
+    <script src="../src/modular.expressions.js"></script>
+    <script>
+
+
+        require.config( {
+            defaultContext : require.config( "defaultContext" ).replace( /src[\\\/]$/ , "test/" ),
+            debug : true
+        } );
+
+        require( [ "tests" ] );
+
+
+
+    </script>
+
+</body>
+</html>
