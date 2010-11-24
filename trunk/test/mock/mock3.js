@@ -7,3 +7,4 @@ define( [ "mock/mock1" , "mock/mock2" ] , function ( a , b) {
     };
 
 } );
+console.log( "DEFINED MOCK3" );

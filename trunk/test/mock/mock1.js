@@ -5,3 +5,4 @@ define( function () {
     };
 
 } );
+console.log( "DEFINED MOCK1" );
