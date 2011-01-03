@@ -8,10 +8,12 @@
 
     <link href="qunit/qunit.css" rel="stylesheet" />
 
+
+
 </head>
 <body>
 
-    <div id="out"></div>
+
 
     <h1 id="qunit-header">QUnit example</h1>
     <h2 id="qunit-banner"></h2>
@@ -26,26 +28,42 @@
 
     <script src="../src/modular.js"></script>
     <script src="../src/modular.expressions.js"></script>
+
+
+    <div id="out"></div>
+
+
+
     <script>
 
-        var console = {
+        var console = console || {
             outputDiv : document.getElementById("out"),
             log: function(msg){
-                this.outputDiv.innerHTML += msg + "<br />";
+                console.outputDiv.innerHTML += msg + "<br />";
             }
         };
 
-        require.config( {
-            defaultContext : require.config( "defaultContext" ).replace( /src[\\\/]$/ , "test/" ),
-            debug : true
-        } );
 
-        //require( [ "isolated" ] );
+
+        if ( require.config ) {
+
+            require.config( {
+                log : console.log,
+                defaultContext : require.config( "defaultContext" ).replace( /src[\\\/]$/ , "test/" ),
+                debug : true
+            } );
+
+        }
+
+        require.listen( "error" , function( e ){
+            console.log( e.message );
+        } );
 
 
 
     </script>
-<script src="isolated.js"></script>
+
+    <script src="isolated.js"></script>
 
 </body>
 </html>

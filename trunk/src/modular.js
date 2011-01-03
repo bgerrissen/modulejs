@@ -136,12 +136,12 @@
             } , data , false );
 
             for ( i = 0 , len = list.length ; i < len ; i++ ) {
-
+                
                 listener = list[ i ];
 
                 eventObject.currentListener = listener;
 
-                try {
+                //try {
 
                     if ( typeof listener === FUNCTION ) {
 
@@ -153,25 +153,26 @@
 
                     }
 
-                } catch ( e ) {
+                //} catch ( e ) {
 
-                    if ( eventType === EVENT_ERROR ) {
+                //    error( e );
 
-                        throw e;
-
-                    } else {
-
-                        notify( EVENT_ERROR , {
-                            record : eventObject.record,
-                            message : "Error in listener: " + e,
-                            error : e
-                        } );
-
-                    }
-
-                }
+                //}
 
             }
+
+        }
+
+    }
+    , error = function ( e ) {
+
+        if ( !config.debug ) {
+
+            throw( e );
+
+        } else {
+
+            notify( EVENT_ERROR , e );
 
         }
 
@@ -292,7 +293,7 @@
 
             if ( hash[ path ] ) {
 
-                notify( EVENT_ERROR , {
+                error( {
                     record : null,
                     message : "CircularReferenceError: forced path '" + expr + "' lead to a cirular reference, operation cancelled.",
                     error : null
@@ -368,14 +369,6 @@
 
         expr = parse( expr );
 
-        if ( !expr.path ) {
-
-            // todo: notify error
-
-            return null;
-
-        }
-
         if ( moduleRegistry[ expr.path ] ) {
 
             return moduleRegistry[ expr.path ];
@@ -433,16 +426,9 @@
 
             status : STATUS_NEW,
             context : getContext( expr.path ),
-            extention : ".js",
+            extension : ".js",
             needs : [],
-            fetch : [],
-            cacheKey : getCacheKey(),
-            node : function ( record ) {
-
-                record.node = document.createElement( "script" );
-                record.node.src = record.context + record.path + record.extention + record.cacheKey;
-
-            }
+            fetch : []
 
         } , true );
 
@@ -462,25 +448,28 @@
      *  @return void;
      */
     , resolve = function ( record ) {
-
-        var data = insertStack.pop();
-
-        if ( !data ) {
-
-            // assume global polluting js file.
+        
+        if ( !insertStack.length ) {
+            
+            // assume define() was not used.
             notify( EVENT_WARNING , {
                 record : record,
                 message : "No module was defined, assuming globals, completing empty module.",
                 error : null
             } );
 
-
             return complete( record );
 
         }
 
+        var data = insertStack.shift()
+        , bundle;
+
         if ( data.path && data.path !== record.path ) {
 
+            // module with explicit defined path, we're now resolving a bundle
+            // that means we do not resolve any anonymous records from here on.
+            bundle = record;
             record = mixin( getRecord( data.path ) , data , true  );
             
         } else {
@@ -488,13 +477,6 @@
             mixin( record , data , true );
 
         }
-
-        console.log( "start@resolve() -------------------" );
-        console.log( insertStack.length + " left in insertStack");
-        console.log( record.path );
-        console.log( record.needs.length );
-        console.log( record.fetch.length );
-        console.log( "end@resolve() -------------------" );
 
         if ( record.status > STATUS_LOADED ) {
 
@@ -505,7 +487,7 @@
 
         if ( record.fetch.length ) {
 
-            record.status = STATUS_LOADED;
+            record.status = STATUS_LOADING;
 
             listen( EVENT_COMPLETE , function ( e ) {
 
@@ -528,9 +510,14 @@
 
         }
 
-        if ( insertStack.length ) {
+        // proceed i
+        if ( bundle && insertStack.length && insertStack[ 0 ].path ) {
 
-            resolve( record );
+            resolve( bundle , true );
+
+        } else if ( bundle ) {
+
+            complete( bundle );
 
         }
 
@@ -543,7 +530,7 @@
             delete record.needs;
             delete record.fetch;
             delete record.context;
-            delete record.extention;
+            delete record.extension;
             delete record.factory;
             delete record.node;
             
@@ -569,7 +556,7 @@
 
             } catch ( e ) {
 
-                notify( EVENT_ERROR , {
+                error( {
                     record : record,
                     message : e,
                     error : e
@@ -612,43 +599,61 @@
      *
      */
     , scripts = doc.getElementsByTagName( "script" )
+    , scriptNode = doc.createElement( "script" )
     , scriptAnchor = scripts[ scripts.length - 1 ]
     , defaultContext = scriptAnchor.src.replace( /[^\\\/]*\.js[^\\\/]?$/ , "" )
+
+    , PRELOAD = !( "addEventListener" in scriptNode ) && ( "readyState" in scriptNode ) && ( "attachEvent" in scriptNode )
+    , pending = []
+
+    , isLoaded = function ( path ) {
+
+        var record = getRecord( path );
+
+        notify( EVENT_LOADED , {
+            record : record
+        } );
+
+        clearTimeout( record.timeoutID );
+
+        resolve( record );
+
+    }
+
     , load = function ( list ) {
 
-        if ( list && list.length ) {
+        if ( !list || !list.length ) {
 
-            scriptAnchor.parentNode.insertBefore(
-                appendNodes( list , doc.createDocumentFragment() ) ,
-                scriptAnchor
-            );
+            return;
 
         }
 
-    }
-    , appendNodes = function ( list , fragment ) {
-
         var i = list.length
-        , node
         , record;
 
         while ( i && i-- ) {
 
             record = list[ i ];
 
-            if ( record.status == STATUS_NEW ) {
+            if ( record.status !== STATUS_NEW ) {
 
-                node = setNode( record , fragment );
+                continue;
 
             }
 
+            if ( record.setNode ) {
+
+                record.setNode( isLoaded );
+
+            } else {
+
+                setNode( record );
+
+            }
+            
             record.status = STATUS_LOADING;
 
         }
-
-        node = null;
-
-        return fragment;
 
     }
     , startTimeout = function( record ) {
@@ -660,77 +665,80 @@
         } , config.scriptTimeout );
 
     }
+    
     , fail = function( record ) {
 
         record.status = STATUS_FAILED;
 
-        notify( EVENT_ERROR , {
+        error( {
             record : record,
             message : "LoadError: Failed to load resource '"+record.path+"' at '"+record.source+"'",
             error : null
         } );
 
     }
-    , setNode = function ( record , fragment ) {
+    , setNode = function ( record ) {
 
-        /*
-        This allows plugin's to change the HTML element.
-        Expects node factory to override itself with a DOM Element.
-         */
-        if ( type( record.node ) == FUNCTION ) {
+        var node = scriptNode.cloneNode( true );
+        node.setAttribute( "data-path" , record.path );
+        node.async = true;
 
-            record.node( record );
+        if ( !record.src ) {
+
+            record.src = record.context + record.path + record.extension + "?" + getCacheKey();
 
         }
 
-        /*
-        Will throw an exception if record.node is not a proper HTML Element.
-        Which will tell you the node constructor is not correct.
-        So this is an implementation error and needs to be thrown instead of handled by event system.
-         */
-        fragment.appendChild( record.node );
+        if ( PRELOAD ) {
 
-        var listener = function () {
+            // IE specific
+            node.attachEvent( "onreadystatechange" , handlePreload );
+            pending.push( node );
 
-            var node = record.node;
+        } else {
 
-            if ( !node.readyState || /complete|loaded/i.test( node.readyState ) ) {
+            // Modern browsers
+            node.addEventListener( "load" , handleLoad , false );
+            scriptAnchor.parentNode.insertBefore( node , scriptAnchor );
 
-                if ( !config.debug || !/^script$/.test( node.nodeName ) ) {
+        }
 
-                    node.parentNode.removeChild( node );
-
-                }
-
-                record.node = node.onreadystatechange = node.onload = null;
-
-                notify( EVENT_LOADED , {
-                    record : record,
-                    message : EVENT_LOADED,
-                    error : null
-                } );
-
-                clearTimeout( record.timeoutID );
-
-                resolve( record );
-
-            }
-
-            node = null;
-
-        };
-
-        record.node.onreadystatechange = record.node.onload = listener;
+        node.src = record.src;
 
         startTimeout( record );
 
         notify( EVENT_LOADING , {
             record : record,
-            message : EVENT_LOADING,
-            error : null
+            message : EVENT_LOADING
         } );
 
+        node = null;
+
     }
+
+    , handlePreload = function () {
+
+        var i = pending.length;
+
+        while ( i && i-- ) {
+
+            if ( pending[ i ].readyState === "loaded" ) {
+
+                scriptAnchor.parentNode.insertBefore( pending[ i ] , scriptAnchor );
+                isLoaded( pending[ i ].getAttribute( "data-path" ) );
+
+            }
+
+        }
+
+    }
+
+    , handleLoad = function ( e ) {
+
+        isLoaded( e.target.getAttribute( "data-path" ) );
+
+    }
+
     , getCacheKey = function(){
         var version = "?cacheKey=" + config.cacheVersion;
         return config.debug ? version + ( "-debugMode-" + uid++ ) : version;
@@ -793,7 +801,11 @@
 
         var fetch = filter( [].concat( format( needs ) ) );
 
-        if ( type( callback ) === FUNCTION ) {
+        if ( !fetch.length && type( callback ) === FUNCTION ) {
+
+            callback.apply( null , getImports( needs) );
+
+        } else if ( type( callback ) === FUNCTION ) {
 
             listen( EVENT_COMPLETE , function ( e ) {
 

@@ -1,10 +1,12 @@
-define( [ "mock/mock1" , "mock/mock2" ] , function ( a , b) {
+define( [ "mock/mock1" , "mock/mock2" , "mock/mock4" ] , function ( a , b , c ) {
+    console.log( "DEFINING MOCK3" );
 
     return {
         id : "MOCK3",
         a : a.id,
-        b : b()
+        b : b(),
+        c : mock4.id
     };
 
 } );
-console.log( "DEFINED MOCK3" );
+console.log( "MOCK3 INTERPRETED" );

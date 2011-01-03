@@ -59,6 +59,6 @@ require.plugin("clean", function (record, param) {
 require.plugin("final", function (record, param) {
 
     record.context = "";
-    record.extention = "";
+    record.extension = "";
 
 });
